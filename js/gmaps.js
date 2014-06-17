@@ -6,10 +6,10 @@ var marker;
 function gmaps_init() {
 
     // center of the universe
-    var latlng = new google.maps.LatLng(51.751724, - 1.255284);
+    var latlng = new google.maps.LatLng(51.2205424,4.4224811);
 
     var options = {
-        zoom: 2,
+        zoom: 17,
         center: latlng,
         mapTypeId: google.maps.MapTypeId.ROADMAP
     };
@@ -51,12 +51,13 @@ function gmaps_init() {
         if (content.querySelector) {
             //search for the address
             var addr = content.querySelector('.gm-basicinfo .gm-addr');
+            var name = content.querySelector('.gm-title');
             if (addr && this.logAsInternal) {
                 google.maps.event.addListenerOnce(this, 'map_changed', function() {
                     var map = this.getMap();
                     if (map) {
                         marker.setPosition(this.getPosition())
-                        update_ui(addr.textContent, this.getPosition())
+                        update_ui(addr.textContent, name.textContent, this.getPosition())
                     }
                 });
             }
@@ -66,6 +67,7 @@ function gmaps_init() {
             };
         };
     };
+
 }
 
 // move the marker to a new position, and center the map on it
@@ -75,11 +77,12 @@ function update_map(geometry) {
 }
 
 // fill in the UI elements with new position data
-function update_ui(address, latLng) {
+function update_ui(address, name, latLng) {
     $('#gmaps-input-address').autocomplete("close");
     $('#gmaps-input-address').val(address);
-    //$('#gmaps-output-latitude').html(latLng.lat());
-    //$('#gmaps-output-longitude').html(latLng.lng());
+    $('#gmaps-output-name').val(name);
+    $('#gmaps-output-latitude').html(latLng.lat());
+    $('#gmaps-output-longitude').html(latLng.lng());
 }
 
 // Query the Google geocode object
@@ -104,8 +107,7 @@ function geocode_lookup(type, value, update) {
             // Google geocoding has succeeded!
             if (results[0]) {
                 // Always update the UI elements with new location data
-                update_ui(results[0].formatted_address,
-                results[0].geometry.location)
+                update_ui(results[0].formatted_address, '', results[0].geometry.location)
 
                 // Only update the map (position marker and center map) if requested
                 if (update) {
@@ -133,7 +135,7 @@ function geocode_lookup(type, value, update) {
                 // In this case we display a warning, clear the address box, but fill in LatLng
                 $('#gmaps-error').html("Woah... that's pretty remote! You're going to have to manually enter a place name.");
                 $('#gmaps-error').show();
-                update_ui('', value)
+                update_ui('', '', value)
             }
         };
     });
@@ -165,7 +167,7 @@ function autocomplete_init() {
 
         // event triggered when drop-down option selected
         select: function(event, ui) {
-            update_ui(ui.item.value, ui.item.geocode.geometry.location)
+            update_ui(ui.item.value, '', ui.item.geocode.geometry.location)
             update_map(ui.item.geocode.geometry)
         }
     });
