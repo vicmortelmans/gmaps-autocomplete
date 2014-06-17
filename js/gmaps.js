@@ -55,9 +55,33 @@ function gmaps_init() {
             if (addr && this.logAsInternal) {
                 google.maps.event.addListenerOnce(this, 'map_changed', function() {
                     var map = this.getMap();
+                    var position = this.getPosition();
                     if (map) {
-                        marker.setPosition(this.getPosition())
-                        update_ui(addr.textContent, name.textContent, this.getPosition())
+                        marker.setPosition(position)
+                        // pass through geocode to fetch postal code
+                        geocoder.geocode({latLng: position}, function(results, status) {
+                            if (status == google.maps.GeocoderStatus.OK) {
+                                // Google geocoding has succeeded!
+                                if (results[0]) {
+                                    // Always update the UI elements with new location data
+                                    update_ui({
+                                        address: addr.textContent, 
+                                        postal_code: get_postal_code(results[0]),
+                                        name: name.textContent, 
+                                        location: position
+                                    });
+                                    return;
+                                }
+                            }
+                            // Geocoder status ok but no results!? or status not ok
+                            update_ui({
+                                address: addr.textContent, 
+                                postal_code: '',
+                                name: name.textContent, 
+                                location: position
+                            });
+                            return;
+                        });
                     }
                 });
             }
@@ -77,12 +101,17 @@ function update_map(geometry) {
 }
 
 // fill in the UI elements with new position data
-function update_ui(address, name, latLng) {
+function update_ui(data) {
+    var address = data.address;
+    var name = data.name;
+    var latLng = data.location;
+    var postal_code = data.postal_code;
     $('#gmaps-input-address').autocomplete("close");
     $('#gmaps-input-address').val(address);
     $('#gmaps-output-name').val(name);
     $('#gmaps-output-latitude').html(latLng.lat());
     $('#gmaps-output-longitude').html(latLng.lng());
+    $('#gmaps-output-postal-code').html(postal_code);
 }
 
 // Query the Google geocode object
@@ -107,11 +136,16 @@ function geocode_lookup(type, value, update) {
             // Google geocoding has succeeded!
             if (results[0]) {
                 // Always update the UI elements with new location data
-                update_ui(results[0].formatted_address, '', results[0].geometry.location)
+                update_ui({
+                    address: results[0].formatted_address,
+                    postal_code: get_postal_code(results[0]),
+                    name: '', 
+                    location: results[0].geometry.location
+                });
 
                 // Only update the map (position marker and center map) if requested
                 if (update) {
-                    update_map(results[0].geometry)
+                    update_map(results[0].geometry);
                 }
             }
             else {
@@ -135,11 +169,16 @@ function geocode_lookup(type, value, update) {
                 // In this case we display a warning, clear the address box, but fill in LatLng
                 $('#gmaps-error').html("Woah... that's pretty remote! You're going to have to manually enter a place name.");
                 $('#gmaps-error').show();
-                update_ui('', '', value)
+                update_ui({
+                    address: '',
+                    postal_code: '',
+                    name: '',
+                    location: value
+                })
             }
         };
     });
-};
+}
 
 // initialise the jqueryUI autocomplete element
 function autocomplete_init() {
@@ -160,15 +199,20 @@ function autocomplete_init() {
                         label: item.formatted_address, // appears in dropdown box
                         value: item.formatted_address, // inserted into input element when selected
                         geocode: item // all geocode data: used in select callback event
-                    }
+                    };
                 }));
-            })
+            });
         },
 
         // event triggered when drop-down option selected
         select: function(event, ui) {
-            update_ui(ui.item.value, '', ui.item.geocode.geometry.location)
-            update_map(ui.item.geocode.geometry)
+            update_ui({
+                address: ui.item.value,
+                postal_code: get_postal_code(ui.item.geocode),
+                name: '',
+                location: ui.item.geocode.geometry.location
+            });
+            update_map(ui.item.geocode.geometry);
         }
     });
 
@@ -178,14 +222,24 @@ function autocomplete_init() {
             geocode_lookup('address', $('#gmaps-input-address').val(), true);
 
             // ensures dropdown disappears when enter is pressed
-            $('#gmaps-input-address').autocomplete("disable")
+            $('#gmaps-input-address').autocomplete("disable");
         }
         else {
             // re-enable if previously disabled above
-            $('#gmaps-input-address').autocomplete("enable")
+            $('#gmaps-input-address').autocomplete("enable");
         }
     });
-}; // autocomplete_init
+} // autocomplete_init
+
+function get_postal_code(res) {
+    var zip = "";
+	for (var i = 0; i < res.address_components.length; i++) {
+		if (res.address_components[i].types[0] == "postal_code") {
+			zip = res.address_components[i].short_name;
+		}
+	}
+	return zip;
+}
 
 $(document).ready(function() {
     if ($('#gmaps-canvas').length) {
