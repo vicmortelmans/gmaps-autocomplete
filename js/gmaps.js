@@ -1,5 +1,6 @@
 var geocoder;
 var map;
+var layer;
 var marker;
 
 // initialise the google maps objects, and add listeners
@@ -17,6 +18,25 @@ function gmaps_init() {
     // create our map object
     map = new google.maps.Map(document.getElementById("gmaps-canvas"), options);
 
+    // create the fusion table layer containing predefined locations
+    layer = new google.maps.FusionTablesLayer({
+        map: map,
+        query: {
+            select: 'latitude',
+            from: '1fBsPig_-ZvkrxAz1pGArRQhqOLEQGCafJbY_z5w2'  // table must be shared !!
+        },
+        styles: [{
+            markerOptions: {
+               iconName: "small_red"
+            }
+        }],
+        options: {
+            styleId: 2,
+            templateId: 2,
+            suppressInfoWindows: true
+        }
+    });
+    
     // the geocoder object allows us to do latlng lookup based on address
     geocoder = new google.maps.Geocoder();
 
@@ -91,6 +111,34 @@ function gmaps_init() {
             };
         };
     };
+    
+    google.maps.event.addListener(layer, 'click', function(e) {
+        var position = new google.maps.LatLng(e.row.latitude.value, e.row.longitude.value);
+        var name = e.row.name.value;
+        geocoder.geocode({latLng: position}, function(results, status) {
+            if (status == google.maps.GeocoderStatus.OK) {
+                // Google geocoding has succeeded!
+                if (results[0]) {
+                    // Always update the UI elements with new location data
+                    update_ui({
+                        address: '', 
+                        postal_code: get_postal_code(results[0]),
+                        name: name, 
+                        location: position
+                    });
+                    return;
+                }
+            }
+            // Geocoder status ok but no results!? or status not ok
+            update_ui({
+                address: '', 
+                postal_code: '',
+                name: name, 
+                location: position
+            });
+            return;
+        });
+    });
 
 }
 
