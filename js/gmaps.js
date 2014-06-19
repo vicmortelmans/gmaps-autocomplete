@@ -1,6 +1,7 @@
 var geocoder;
 var map;
 var layer;
+var layer2;
 var marker;
 
 // initialise the google maps objects, and add listeners
@@ -27,9 +28,23 @@ function gmaps_init() {
         },
         styles: [{
             markerOptions: {
-               iconName: "small_red"
+               iconName: "small_green"
             }
         }],
+        options: {
+            styleId: 2,
+            templateId: 2,
+            suppressInfoWindows: true
+        }
+    });
+    
+    // create the fusion table layer containing current locations
+    layer2 = new google.maps.FusionTablesLayer({
+        map: map,
+        query: {
+            select: 'latitude',
+            from: '1hpPoQWl-G6e6FjagnqOZ2pAicWOAC9x7txR1mXk'  // table must be shared !!
+        }, // when adding a second layer, keep in mind that only one layer can be styled!!!
         options: {
             styleId: 2,
             templateId: 2,
@@ -137,6 +152,19 @@ function gmaps_init() {
                 location: position
             });
             return;
+        });
+    });
+
+    google.maps.event.addListener(layer2, 'click', function(e) {
+        var address = e.row['address'].value;
+        var postal_code = e.row['postal code'].value;
+        var position = new google.maps.LatLng(e.row.latitude.value, e.row.longitude.value);
+        var name = e.row['location name'].value;
+        update_ui({
+            address: address,
+            postal_code: postal_code,
+            name: name, 
+            location: position
         });
     });
 
